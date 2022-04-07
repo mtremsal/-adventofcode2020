@@ -1,0 +1,82 @@
+# day01
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def find_complement(value, list, target) do
+    if (target - value) in list do
+      value
+    end
+  end
+end
+```
+
+## part a
+
+```elixir
+list =
+  input
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.sort()
+
+for x <- list do
+  Shared.find_complement(x, list, 2020)
+end
+|> Enum.reject(&is_nil/1)
+|> Enum.product()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+list =
+  input
+  |> String.split("\n", trim: true)
+  |> Enum.map(&String.to_integer/1)
+  |> Enum.sort()
+
+for x <- list do
+  {x,
+   Enum.map(list, fn
+     value when value <= x -> nil
+     value -> value
+   end)
+   |> Enum.reject(&is_nil/1)}
+end
+|> Enum.map(fn {init, array} ->
+  for x <- array do
+    Shared.find_complement(x, array, 2020 - init)
+  end
+  |> Enum.reject(&is_nil/1)
+  |> then(fn
+    a when a == [] -> nil
+    a -> [init | a]
+  end)
+end)
+|> Enum.reject(&is_nil/1)
+|> then(&hd/1)
+|> Enum.product()
+```

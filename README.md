@@ -1,2 +1,2 @@
-# -adventofcode2020
-Solving https://adventofcode.com/2020/ with Elixir 
+# adventofcode2020
+Solving https://adventofcode.com/2020/ with Elixir and LiveBook
