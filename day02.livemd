@@ -1,0 +1,84 @@
+# Day02
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse_line(line) do
+    line
+    |> String.split(": ")
+    |> then(&[parse_password(tl(&1)) | parse_policy(hd(&1))])
+    |> List.to_tuple()
+  end
+
+  defp parse_policy(string) do
+    string
+    |> String.split(["-", " "])
+    |> clean_policy()
+  end
+
+  defp clean_policy([min, max, char]) do
+    [String.to_integer(min), String.to_integer(max), char]
+  end
+
+  defp parse_password([string]), do: string
+
+  def validate_a({pass, min, max, char}) do
+    pass
+    |> String.split(char)
+    |> Enum.count()
+    |> then(&(min <= &1 - 1 and max >= &1 - 1))
+  end
+
+  def validate_b({pass, pos1, pos2, char}) do
+    pass
+    |> then(&{String.at(&1, pos1 - 1) == char, String.at(&1, pos2 - 1) == char})
+    |> then(&((elem(&1, 0) or elem(&1, 1)) and !(elem(&1, 0) and elem(&1, 1))))
+
+    # Is there no xor operator??
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> String.split("\n", trim: true)
+|> Enum.map(&Shared.parse_line/1)
+|> Enum.map(&Shared.validate_a/1)
+|> Enum.filter(& &1)
+|> Enum.count()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> String.split("\n", trim: true)
+|> Enum.map(&Shared.parse_line/1)
+|> Enum.map(&Shared.validate_b/1)
+|> Enum.filter(& &1)
+|> Enum.count()
+```
