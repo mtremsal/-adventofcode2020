@@ -1,0 +1,74 @@
+# Day03
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      line
+      |> String.graphemes()
+      |> Enum.map(fn
+        "." -> 0
+        "#" -> 1
+      end)
+    end)
+  end
+
+  def access(map, down, right) do
+    max_right = map |> Enum.at(0) |> Enum.count()
+
+    map
+    |> Enum.at(down)
+    |> Enum.at(rem(right, max_right))
+  end
+
+  def crawl(map, down, right), do: crawl(map, down, right, Enum.count(map), 0, 0)
+  defp crawl(_map, down, _right, max, n, sum) when n * down >= max, do: sum
+
+  defp crawl(map, down, right, max, n, sum) do
+    val = access(map, down * n, right * n)
+    crawl(map, down, right, max, n + 1, sum + val)
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.crawl(1, 3)
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+map = input |> Shared.parse()
+
+[{1, 1}, {1, 3}, {1, 5}, {1, 7}, {2, 1}]
+|> Enum.reduce(1, fn {down, right}, acc -> acc * Shared.crawl(map, down, right) end)
+```
