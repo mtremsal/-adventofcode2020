@@ -1,0 +1,74 @@
+# Day05
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(list) do
+    list
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.split_at(&1, 7))
+  end
+
+  def translate({fb, lr}), do: {to_binary(fb), to_binary(lr)}
+
+  def score({row, col}), do: row * 8 + col
+
+  def to_binary(string), do: to_binary(string, 0)
+
+  defp to_binary("", res), do: res
+  defp to_binary("B" <> string, res), do: to_binary(string, res * 2 + 1)
+  defp to_binary("F" <> string, res), do: to_binary(string, res * 2 + 0)
+  defp to_binary("R" <> string, res), do: to_binary(string, res * 2 + 1)
+  defp to_binary("L" <> string, res), do: to_binary(string, res * 2 + 0)
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Enum.map(&Shared.translate/1)
+|> Enum.map(&Shared.score/1)
+|> Enum.max()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+seats =
+  input
+  |> Shared.parse()
+  |> Enum.map(&Shared.translate/1)
+  |> Enum.map(&Shared.score/1)
+
+for i <- 0..Enum.max(seats),
+    u = i - 1,
+    o = i + 1,
+    i not in seats,
+    u in seats and o in seats do
+  i
+end
+```
