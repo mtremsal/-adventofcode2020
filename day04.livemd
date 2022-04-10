@@ -1,0 +1,144 @@
+# Day04
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  @keys ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"]
+  @eyes ["amb", "blu", "brn", "gry", "grn", "hzl", "oth"]
+
+  def parse_a(file) do
+    file
+    |> String.split("\n\n", trim: true)
+    |> Enum.map(fn passport ->
+      passport
+      |> String.split([" ", ":", "\n"], trim: true)
+    end)
+  end
+
+  def validate_a(passport) do
+    @keys
+    |> Enum.map(&(&1 in passport))
+    |> Enum.all?()
+  end
+
+  # Note: parse_b and validate_b fully replace parse_a and validate_a
+
+  def parse_b(file) do
+    file
+    |> String.split("\n\n", trim: true)
+    |> Enum.map(fn passport ->
+      passport
+      |> String.split([" ", "\n"], trim: true)
+      |> Enum.map(fn kvpair -> kvpair |> String.split(":") |> List.to_tuple() end)
+    end)
+  end
+
+  def validate_keys(passport) do
+    keys = passport |> Enum.map(&elem(&1, 0))
+
+    @keys
+    |> Enum.map(&(&1 in keys))
+    |> Enum.all?(&(&1 == true))
+  end
+
+  def validate_values(passport) do
+    passport
+    |> Enum.map(&validate_field/1)
+    |> Enum.all?(&(&1 == true))
+  end
+
+  defp validate_field({"byr", byr}) do
+    case Integer.parse(byr) do
+      {year, ""} -> year >= 1920 && year <= 2002
+      :error -> false
+      _ -> false
+    end
+  end
+
+  defp validate_field({"iyr", iyr}) do
+    case Integer.parse(iyr) do
+      {year, ""} -> year >= 2010 && year <= 2020
+      :error -> false
+      _ -> false
+    end
+  end
+
+  defp validate_field({"eyr", eyr}) do
+    case Integer.parse(eyr) do
+      {year, ""} -> year >= 2020 && year <= 2030
+      :error -> false
+      _ -> false
+    end
+  end
+
+  defp validate_field({"hgt", hgt}) do
+    {l, unit} = hgt |> String.split_at(-2)
+
+    case Integer.parse(l) do
+      {size, ""} ->
+        case unit do
+          "cm" -> size >= 150 && size <= 193
+          "in" -> size >= 59 && size <= 76
+          _ -> false
+        end
+
+      :error ->
+        false
+
+      _ ->
+        false
+    end
+  end
+
+  defp validate_field({"hcl", "#" <> hcl}), do: String.match?(hcl, ~r/[a-f0-9]{6}/)
+  defp validate_field({"ecl", ecl}), do: ecl in @eyes
+
+  defp validate_field({"pid", pid}),
+    do: String.match?(pid, ~r/[0-9]{9}/) && String.length(pid) == 9
+
+  defp validate_field({"cid", _cid}), do: true
+  defp validate_field(_other), do: false
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse_a()
+|> Enum.map(&Shared.validate_a/1)
+|> Enum.filter(& &1)
+|> Enum.count()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse_b()
+|> Enum.filter(&Shared.validate_keys/1)
+|> Enum.filter(&Shared.validate_values/1)
+|> Enum.count()
+```
