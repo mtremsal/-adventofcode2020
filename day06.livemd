@@ -1,0 +1,79 @@
+# Day06
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse_a(file) do
+    file
+    |> String.split("\n\n", trim: true)
+    |> Enum.map(&String.replace(&1, "\n", ""))
+  end
+
+  def tabulate_a(group) do
+    for char <- ?a..?z,
+        String.contains?(group, <<char>>) do
+      <<char>>
+    end
+  end
+
+  def parse_b(file) do
+    file
+    |> String.split("\n\n", trim: true)
+    |> Enum.map(&String.split(&1, "\n", trim: true))
+  end
+
+  def tabulate_b(group) do
+    size = group |> Enum.count()
+
+    group
+    |> Enum.map(&String.graphemes/1)
+    |> Enum.map(&Enum.frequencies/1)
+    |> Enum.reduce(fn map, acc ->
+      Map.merge(acc, map, fn _k, v1, v2 -> v1 + v2 end)
+    end)
+    |> Map.filter(fn {_k, v} -> v == size end)
+    |> Enum.count()
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse_a()
+|> Enum.map(&Shared.tabulate_a/1)
+|> Enum.concat()
+|> Enum.count()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse_b()
+|> Enum.map(&Shared.tabulate_b/1)
+|> Enum.sum()
+```
