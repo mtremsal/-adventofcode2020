@@ -1,0 +1,131 @@
+# Day07
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.replace(" bags", "")
+    |> String.replace(" bag", "")
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.split(&1, [" contain ", ", ", "."], trim: true))
+    |> Enum.map(&parse_instruction/1)
+  end
+
+  defp parse_instruction(instruction) do
+    instruction
+    |> Enum.map(&parse_token/1)
+    |> then(fn [head | tail] -> {head, tail} end)
+  end
+
+  defp parse_token("no other"), do: {0, :none}
+
+  defp parse_token(token) do
+    word_count = token |> String.split(" ") |> Enum.count()
+    parse_token(token, word_count)
+  end
+
+  defp parse_token(token, 2), do: token
+
+  defp parse_token(token, _) do
+    [number | description] = token |> String.split(" ")
+    {String.to_integer(number), Enum.join(description, " ")}
+  end
+
+  # Array of instructions such as:
+  # {"light red", [{1, "bright white"}, {2, "muted yellow"}]}
+  def build_graph(instructions), do: build_graph(instructions, [])
+
+  defp build_graph([], list), do: list
+
+  defp build_graph([{from, to_array} | tail], list),
+    do: build_graph(tail, add_nodes(from, to_array, list))
+
+  defp add_nodes(_from, [], list), do: list
+  defp add_nodes(from, [head | tail], list), do: add_nodes(from, tail, [{from, head} | list])
+
+  def allow_in(graph, target_bag) do
+    all_bags =
+      for {bag, _} <- graph do
+        bag
+      end
+      |> Enum.uniq()
+
+    reduce(graph, target_bag, all_bags -- [target_bag], [target_bag])
+  end
+
+  # This could be improved if we assume the instructions form a DAG.
+  defp reduce(graph, target_bag, remaining_bags, valid_source_bags) do
+    new_valid_bags =
+      for valid_bag <- valid_source_bags do
+        graph
+        |> Enum.filter(fn {_from, {_, to}} -> to == valid_bag end)
+        |> Enum.map(&elem(&1, 0))
+      end
+      |> Enum.concat()
+      |> Enum.uniq()
+
+    r_bags = remaining_bags -- new_valid_bags
+    v_bags = (valid_source_bags ++ new_valid_bags) |> Enum.uniq()
+
+    if v_bags == valid_source_bags do
+      valid_source_bags
+    else
+      reduce(graph, target_bag, r_bags, v_bags)
+    end
+  end
+
+  def contains(graph, target_bag) do
+    for {from, {count, target}} <- graph,
+        from == target_bag do
+      case target do
+        :none -> 0
+        _ -> count * (1 + contains(graph, target))
+      end
+    end
+    |> Enum.sum()
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.build_graph()
+|> Shared.allow_in("shiny gold")
+|> Enum.count()
+|> then(&(&1 - 1))
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.build_graph()
+|> Shared.contains("shiny gold")
+```
