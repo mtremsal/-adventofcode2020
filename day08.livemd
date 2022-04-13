@@ -1,0 +1,98 @@
+# Day08
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      line
+      |> String.split(" ", trim: true)
+      |> then(&{hd(&1), hd(tl(&1)) |> String.to_integer()})
+    end)
+  end
+
+  def debug(instructions), do: debug(instructions, 0, 0, [])
+
+  defp debug(instructions, acc, loc, seen_instructions) do
+    if loc == Enum.count(instructions) do
+      {:ok, acc}
+    else
+      {op, param} = Enum.at(instructions, loc)
+      {new_acc, new_loc} = execute(op, param, acc, loc)
+
+      if new_loc in seen_instructions do
+        {:error, new_acc}
+      else
+        debug(instructions, new_acc, new_loc, [new_loc | seen_instructions])
+      end
+    end
+  end
+
+  def fix(instructions), do: fix(instructions, 0)
+
+  def fix(instructions, i) do
+    case try_to_fix(instructions, i) |> debug do
+      {:error, _} -> fix(instructions, i + 1)
+      {:ok, acc} -> acc
+    end
+  end
+
+  def try_to_fix(instructions, i) do
+    {op, param} = Enum.at(instructions, i)
+
+    new_op =
+      case op do
+        "nop" -> "jmp"
+        "jmp" -> "nop"
+        "acc" -> "acc"
+      end
+
+    List.replace_at(instructions, i, {new_op, param})
+  end
+
+  defp execute("nop", _param, acc, loc), do: {acc, loc + 1}
+  defp execute("acc", param, acc, loc), do: {acc + param, loc + 1}
+  defp execute("jmp", param, acc, loc), do: {acc, loc + param}
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.debug()
+|> elem(1)
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.fix()
+```
