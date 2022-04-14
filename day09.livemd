@@ -1,0 +1,92 @@
+# Day09
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.to_integer/1)
+  end
+
+  def is_valid?(list, next) do
+    size = Enum.count(list)
+
+    for i <- 0..(size - 2),
+        j <- (i + 1)..(size - 1),
+        Enum.at(list, i) + Enum.at(list, j) == next do
+      :valid
+    end != []
+  end
+
+  def find_error(band, preambule_size) do
+    {list, [next | rest_of_band]} = Enum.split(band, preambule_size)
+    find_error(list, next, rest_of_band)
+  end
+
+  def find_error(list, next, rest_of_band) do
+    if is_valid?(list, next) do
+      [_head | tail] = list
+      [new_next | new_rest_of_band] = rest_of_band
+      find_error(tail ++ [next], new_next, new_rest_of_band)
+    else
+      next
+    end
+  end
+
+  def find_error_range(band, error) do
+    {index, found?} =
+      Enum.reduce_while(band, {0, 0}, fn x, {index, acc} ->
+        if acc < error, do: {:cont, {index + 1, acc + x}}, else: {:halt, {index, acc == error}}
+      end)
+
+    if found?, do: Enum.slice(band, 0..(index - 1)), else: find_error_range(tl(band), error)
+  end
+end
+```
+
+## part a
+
+```elixir
+# sample
+# |> Shared.parse()
+# |> Shared.find_error(5)
+
+input
+|> Shared.parse()
+|> Shared.find_error(25)
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+band = input |> Shared.parse()
+error = band |> Shared.find_error(25)
+
+band
+|> Shared.find_error_range(error)
+|> Enum.min_max()
+|> then(&(elem(&1, 0) + elem(&1, 1)))
+```
