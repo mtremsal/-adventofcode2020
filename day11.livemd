@@ -1,0 +1,164 @@
+# Day11
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.graphemes/1)
+  end
+
+  def eval("#"), do: 1
+  def eval(_), do: 0
+
+  defp size(grid) do
+    x_max = grid |> Enum.count()
+    y_max = grid |> hd() |> Enum.count()
+    {x_max, y_max}
+  end
+
+  def access(grid, row, col) do
+    {x_max, y_max} = size(grid)
+
+    case {row, col} do
+      {x, _} when x < 0 or x >= x_max -> nil
+      {_, y} when y < 0 or y >= y_max -> nil
+      _ -> grid |> Enum.at(row) |> Enum.at(col)
+    end
+  end
+
+  defp neighbors_delta() do
+    for x <- -1..1,
+        y <- -1..1 do
+      {y, x}
+    end -- [{0, 0}]
+  end
+
+  def neighbors(grid, row, col) do
+    neighbors_delta()
+    |> Stream.map(fn {x, y} -> {x + row, y + col} end)
+    |> Stream.map(&access(grid, elem(&1, 0), elem(&1, 1)))
+    |> Stream.map(&eval/1)
+    |> Enum.sum()
+  end
+
+  def step_a(grid) do
+    {x_max, y_max} = size(grid)
+
+    for x <- 0..(x_max - 1) do
+      for y <- 0..(y_max - 1) do
+        case {access(grid, x, y), neighbors(grid, x, y)} do
+          {".", _} -> "."
+          {"L", 0} -> "#"
+          {"L", _} -> "L"
+          {"#", n} when n >= 4 -> "L"
+          {"#", _} -> "#"
+        end
+      end
+    end
+  end
+
+  def stabilize_a(grid) do
+    new_grid = step_a(grid)
+
+    if grid == new_grid do
+      grid
+    else
+      stabilize_a(new_grid)
+    end
+  end
+
+  def evaluate(grid) do
+    grid
+    |> Enum.concat()
+    |> Enum.map(&eval/1)
+    |> Enum.sum()
+  end
+
+  # Part B
+
+  def find_seat_along_vector(grid, row, col, d_x, d_y) do
+    {x, y} = {row + d_x, col + d_y}
+
+    case access(grid, x, y) do
+      "." -> find_seat_along_vector(grid, x, y, d_x, d_y)
+      # including nil
+      other -> other
+    end
+  end
+
+  def views(grid, row, col) do
+    neighbors_delta()
+    |> Stream.map(&find_seat_along_vector(grid, row, col, elem(&1, 0), elem(&1, 1)))
+    |> Stream.map(&eval/1)
+    |> Enum.sum()
+  end
+
+  def step_b(grid) do
+    {x_max, y_max} = size(grid)
+
+    for x <- 0..(x_max - 1) do
+      for y <- 0..(y_max - 1) do
+        case {access(grid, x, y), views(grid, x, y)} do
+          {".", _} -> "."
+          {"L", 0} -> "#"
+          {"L", _} -> "L"
+          {"#", n} when n >= 5 -> "L"
+          {"#", _} -> "#"
+        end
+      end
+    end
+  end
+
+  def stabilize_b(grid) do
+    new_grid = step_b(grid)
+
+    if grid == new_grid do
+      grid
+    else
+      stabilize_b(new_grid)
+    end
+  end
+end
+```
+
+## part a
+
+```elixir
+sample
+|> Shared.parse()
+|> Shared.stabilize_a()
+|> Shared.evaluate()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.stabilize_b()
+|> Shared.evaluate()
+```
