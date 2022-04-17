@@ -1,0 +1,139 @@
+# Day10
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.to_integer/1)
+    |> Enum.sort()
+  end
+
+  # Part A
+
+  def count(array), do: count([0 | array], 0, 0)
+  defp count([_], ones, threes), do: ones * (threes + 1)
+
+  defp count([head | tail], ones, threes) do
+    case hd(tail) - head do
+      3 -> count(tail, ones, threes + 1)
+      1 -> count(tail, ones + 1, threes)
+      _ -> :error
+    end
+  end
+
+  # Part B
+  # Filters could be more efficiently stored as bitmaps, e.g. <<0::1, data::bitstring>>
+  # but dealing with bitstrings of arbitrary length is cumbersome, 
+  # so each char gets its own byte instead.
+
+  def filter_with_hash(base_array, hash), do: filter_with_hash(base_array, hash, [])
+
+  defp filter_with_hash(_, <<>>, result), do: Enum.reverse(result)
+  defp filter_with_hash([], _hash, _result), do: :error
+
+  defp filter_with_hash([_head | tail], <<"0", data::binary>>, result),
+    do: filter_with_hash(tail, data, result)
+
+  defp filter_with_hash([head | tail], <<"1", data::binary>>, result),
+    do: filter_with_hash(tail, data, [head | result])
+
+  defp is_valid?(:error), do: false
+  defp is_valid?([_last]), do: true
+
+  defp is_valid?([head | tail]) do
+    case hd(tail) - head do
+      1 -> is_valid?(tail)
+      2 -> is_valid?(tail)
+      3 -> is_valid?(tail)
+      _ -> false
+    end
+  end
+
+  def is_filter_valid?(base_array, filter) do
+    base_array
+    |> filter_with_hash(filter)
+    |> is_valid?()
+  end
+
+  # The array is sorted so only up to 2 values can be skipped 
+  # and still generate a valid permutation
+  defp possible_filters, do: ["1", "01", "001"]
+
+  def generate_valid_permutations(base_array, filter) do
+    possible_filters()
+    |> Enum.map(&(filter <> &1))
+    |> Enum.filter(&is_filter_valid?(base_array, &1))
+  end
+
+  def permute(base_array) do
+    first = 0
+    last = 3 + Enum.at(base_array, -1)
+    array = [first | base_array] ++ [last]
+    limit = Enum.count(array)
+
+    # Prepare the graph of all possible continuations for each element in the array
+    graph =
+      for i <- 1..limit, into: %{} do
+        filter = String.duplicate("1", i)
+
+        {
+          i,
+          generate_valid_permutations(array, filter)
+          |> Enum.map(&String.length/1)
+        }
+      end
+
+    # Walk back the graph and sum the number of permutations
+    (limit - 1)..1//-1
+    |> Enum.reduce(%{limit => 1}, fn i, acc ->
+      number_of_targets =
+        Map.fetch!(graph, i)
+        |> Enum.map(fn x -> Map.fetch!(acc, x) end)
+        |> Enum.sum()
+
+      Map.put(acc, i, number_of_targets)
+    end)
+    |> Map.fetch!(1)
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.count()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.permute()
+```
