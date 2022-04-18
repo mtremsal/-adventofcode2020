@@ -1,0 +1,114 @@
+# Day12
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  defp parse_line(<<letter::binary-size(1), value::binary>>),
+    do: {letter, String.to_integer(value)}
+
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> Enum.map(&parse_line/1)
+  end
+
+  def evaluate({x, y}), do: abs(x) + abs(y)
+end
+
+defmodule PartA do
+  def run(actions), do: run(actions, 0, 0, {0, 1})
+
+  defp run([], x, y, _direction), do: {x, y}
+
+  defp run([head | rest], x, y, direction) do
+    {new_x, new_y, new_direction} = step(head, x, y, direction)
+    run(rest, new_x, new_y, new_direction)
+  end
+
+  defp step({"N", value}, x, y, direction), do: {x + value, y, direction}
+  defp step({"S", value}, x, y, direction), do: {x - value, y, direction}
+  defp step({"E", value}, x, y, direction), do: {x, y + value, direction}
+  defp step({"W", value}, x, y, direction), do: {x, y - value, direction}
+
+  defp step({"F", value}, x, y, {dx, dy} = direction),
+    do: {x + value * dx, y + value * dy, direction}
+
+  defp step({letter, value}, x, y, direction),
+    do: {x, y, rotate(letter, div(value, 90), direction)}
+
+  defp rotate(_, 0, direction), do: direction
+  defp rotate("L", iters, {dx, dy}), do: rotate("L", iters - 1, {dy, -1 * dx})
+  defp rotate("R", iters, {dx, dy}), do: rotate("R", iters - 1, {-1 * dy, dx})
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> PartA.run()
+|> Shared.evaluate()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+defmodule PartB do
+  # The code could be refactored to share the run function
+  def run(actions), do: run(actions, 0, 0, 1, 10)
+
+  defp run([], x, y, _dx, _dy), do: {x, y}
+
+  defp run([head | rest], x, y, dx, dy) do
+    {new_x, new_y, new_dx, new_dy} = step(head, x, y, dx, dy)
+    run(rest, new_x, new_y, new_dx, new_dy)
+  end
+
+  defp step({"N", value}, x, y, dx, dy), do: {x, y, dx + value, dy}
+  defp step({"S", value}, x, y, dx, dy), do: {x, y, dx - value, dy}
+  defp step({"E", value}, x, y, dx, dy), do: {x, y, dx, dy + value}
+  defp step({"W", value}, x, y, dx, dy), do: {x, y, dx, dy - value}
+  defp step({"F", value}, x, y, dx, dy), do: {x + value * dx, y + value * dy, dx, dy}
+
+  defp step({letter, value}, x, y, dx, dy) do
+    {new_dx, new_dy} = rotate(letter, div(value, 90), dx, dy)
+    {x, y, new_dx, new_dy}
+  end
+
+  # The code could be refactored to share the rotate function,
+  # as the waypoint is relative to the ship
+  defp rotate(_, 0, dx, dy), do: {dx, dy}
+  defp rotate("L", iters, dx, dy), do: rotate("L", iters - 1, dy, -1 * dx)
+  defp rotate("R", iters, dx, dy), do: rotate("R", iters - 1, -1 * dy, dx)
+end
+```
+
+```elixir
+input
+|> Shared.parse()
+|> PartB.run()
+|> Shared.evaluate()
+```
