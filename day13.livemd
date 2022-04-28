@@ -1,0 +1,199 @@
+# Day13
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule PartA do
+  def parse(text) do
+    [head | tail] = String.split(text, "\n", trim: true)
+    timestamp = String.to_integer(head)
+
+    buses =
+      hd(tail)
+      |> String.split(",", trim: true)
+      |> Enum.reject(&(&1 == "x"))
+      |> Enum.map(&String.to_integer/1)
+      |> Enum.sort()
+
+    {timestamp, buses}
+  end
+
+  def solve({timestamp, buses}) do
+    buses
+    |> Enum.map(fn i -> {i, i - rem(timestamp, i)} end)
+    |> Enum.min_by(fn {_i, delta} -> delta end)
+    |> then(&(elem(&1, 0) * elem(&1, 1)))
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> PartA.parse()
+|> PartA.solve()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+defmodule PartB do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+    |> tl()
+    |> hd()
+    |> String.split(",", trim: true)
+    |> Enum.map_reduce(0, fn
+      "x", acc -> {nil, acc + 1}
+      i, acc -> {{String.to_integer(i), acc}, acc + 1}
+    end)
+    |> then(&elem(&1, 0))
+    |> Enum.reject(&(&1 == nil))
+  end
+
+  # Attempt 1: this implementation works but it's slow
+  def find_next_shared_start({delta1, delay1}, {delta2, delay2}),
+    do: find_next_shared_start(delta1, delay1, delta2, delay2)
+
+  defp find_next_shared_start(base_delta, time_acc, delta, delay)
+       when rem(time_acc, delta) == delta - delay,
+       do: {base_delta * delta, time_acc}
+
+  defp find_next_shared_start(base_delta, time_acc, delta, delay) do
+    new_delta = time_acc + base_delta
+    find_next_shared_start(base_delta, new_delta, delta, delay)
+  end
+
+  def reduce_buses([{_delta, time}]), do: time
+
+  def reduce_buses([head | rest]) do
+    delta_and_time = find_next_shared_start(head, hd(rest))
+    IO.inspect(delta_and_time)
+    reduce_buses([delta_and_time | tl(rest)])
+  end
+
+  # Attempt 2: with Chinese Remainder Theorem
+
+  def solve(buses) do
+    n =
+      buses
+      |> Enum.map(&elem(&1, 0))
+      |> Enum.product()
+
+    prod =
+      buses
+      |> calculate_ni_xi
+      |> Enum.map(fn {_modi, remi, ni, xi} -> remi * ni * xi end)
+      |> Enum.sum()
+
+    rem(prod, n)
+  end
+
+  def calculate_ni_xi(buses) do
+    for {delta, time} <- buses do
+      modi = delta
+      remi = rem(delta - time, delta)
+
+      ni =
+        buses
+        |> Enum.reject(fn {mod, _rem} -> mod == modi end)
+        |> Enum.map(&elem(&1, 0))
+        |> Enum.product()
+
+      xi = find_xi(ni, modi)
+
+      IO.inspect("modi = #{modi}, remi = #{remi}, ni = #{ni}, xi = #{xi}")
+      {modi, remi, ni, xi}
+    end
+  end
+
+  defp find_xi(ni, modi), do: find_xi(ni, modi, 0)
+  defp find_xi(ni, modi, xi) when rem(ni * xi, modi) == 1, do: xi
+  defp find_xi(ni, modi, xi), do: find_xi(ni, modi, xi + 1)
+end
+```
+
+```elixir
+input
+|> PartB.parse()
+|> PartB.solve()
+```
+
+### Attempt 1
+
+sample: 1068781
+
+steps:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+{91, 77}
+{5369, 350}
+{166439, 70147}
+{3162341, 1068781}
+```
+
+First 2 reductions on sample:
+
+Step 1
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+PartB.find_next_shared_start({7, 0}, {13, 1})
+{91, 77}
+rem(77, 7) == 0
+rem(77, 13) == 13 - 1
+rem(77 + 91, 7) == 0
+rem(77 + 91, 13) == 13 - 1
+```
+
+Step 2
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+PartB.find_next_shared_start({91, 77}, {59, 4})
+{5369, 350}
+rem(350, 7) == 0
+rem(350, 13) == 13 - 1
+rem(350, 59) == 59 - 4
+```
+
+### Attempt 2 - Chinese Remainder Theorem
+
+`sample_buses = [{7, 0}, {13, 1}, {59, 4}, {31, 6}, {19, 7}]`
+
+x = 0 mod 7   | N1 = 13 x 59 x ...  | N1 x x1 = 1 mod 7   | b1N1x1
+
+x = 1 mod 13  | N2 = 7 x 59 x ...   | N2 x x2 = 1 mod 13  | b2N2x2
+
+x = 4 mod 59  | N3 = 7 x 13 x ...   | N3 x x3 = 1 mod 59  | b3N3x3
+
+x = sum(biNixi) mod N (with N = 7 x 13 x 59 x ...)
+
+Note: xi is the "inverse" of Ni mod modi
