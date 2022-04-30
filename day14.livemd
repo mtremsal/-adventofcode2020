@@ -1,0 +1,147 @@
+# Day14
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Memory do
+  defstruct mask: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", addr: %{}
+end
+
+defmodule Shared do
+  def parse(text) do
+    text
+    |> String.split("\n", trim: true)
+  end
+
+  def process(instructions, mode) do
+    instructions
+    |> Enum.reduce(%Memory{}, fn line, mem -> process_line(mem, line, mode) end)
+  end
+
+  def process_line(%Memory{} = mem, "mask = " <> mask, _mode) do
+    %Memory{mem | mask: mask}
+  end
+
+  def process_line(%Memory{} = mem, write, mode) do
+    [addr | [value]] =
+      write
+      |> String.split(["mem[", "] = "], trim: true)
+      |> Enum.map(&String.to_integer/1)
+
+    write(mem, addr, value, mode)
+  end
+
+  def write(mem, addr, value, PartA), do: PartA.write(mem, addr, value)
+  def write(mem, addr, value, PartB), do: PartB.write(mem, addr, value)
+
+  def eval(%Memory{addr: addr}), do: addr |> Map.values() |> Enum.sum()
+
+  def to_binary(int) do
+    int
+    |> Integer.to_string(2)
+    |> String.pad_leading(36, "0")
+  end
+end
+```
+
+```elixir
+defmodule PartA do
+  def write(%Memory{} = mem, addr, value) do
+    new_addr = Map.put(mem.addr, addr, mask(Shared.to_binary(value), mem.mask))
+
+    %Memory{mem | addr: new_addr}
+  end
+
+  def mask(bin_value, mask), do: mask(bin_value, mask, "")
+  def mask("0" <> bin_value, "X" <> mask, res), do: mask(bin_value, mask, "0" <> res)
+  def mask("1" <> bin_value, "X" <> mask, res), do: mask(bin_value, mask, "1" <> res)
+
+  def mask(<<_::binary-size(1), bin_value::binary>>, "1" <> mask, res),
+    do: mask(bin_value, mask, "1" <> res)
+
+  def mask(<<_::binary-size(1), bin_value::binary>>, "0" <> mask, res),
+    do: mask(bin_value, mask, "0" <> res)
+
+  def mask("", "", res) do
+    {val, ""} = res |> String.reverse() |> Integer.parse(2)
+    val
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.process(PartA)
+|> Shared.eval()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+defmodule PartB do
+  def write(%Memory{} = mem, addr, value) do
+    addresses = mask(Shared.to_binary(addr), mem.mask)
+
+    new_addr =
+      addresses
+      |> Enum.reduce(mem.addr, fn address, acc ->
+        Map.put(acc, address, value)
+      end)
+
+    %Memory{mem | addr: new_addr}
+  end
+
+  def mask(base_address, mask), do: mask(base_address, mask, [""])
+
+  def mask("", "", res) do
+    Enum.map(res, fn addr ->
+      {val, ""} =
+        addr
+        |> String.reverse()
+        |> Integer.parse(2)
+
+      val
+    end)
+  end
+
+  def mask(<<letter::binary-size(1), base_address::binary>>, "0" <> mask, res),
+    do: mask(base_address, mask, res |> Enum.map(&(letter <> &1)))
+
+  def mask(<<_::binary-size(1), base_address::binary>>, "1" <> mask, res),
+    do: mask(base_address, mask, res |> Enum.map(&("1" <> &1)))
+
+  def mask(<<_::binary-size(1), base_address::binary>>, "X" <> mask, res),
+    do: mask(base_address, mask, res |> Enum.map(&["1" <> &1, "0" <> &1]) |> Enum.concat())
+end
+```
+
+```elixir
+input
+|> Shared.parse()
+|> Shared.process(PartB)
+|> Shared.eval()
+```
