@@ -1,0 +1,223 @@
+# Day16
+
+## Setup
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+sample_text = Kino.Input.textarea("sample")
+```
+
+```elixir
+input_text = Kino.Input.textarea("input")
+```
+
+```elixir
+sample = Kino.Input.read(sample_text)
+input = Kino.Input.read(input_text)
+```
+
+```elixir
+defmodule Shared do
+  def parse(text) do
+    sections =
+      text
+      |> String.replace(["your ticket:\n", "nearby tickets:\n"], "")
+      |> String.split("\n\n", trim: true)
+
+    [rule_block | ticket_blocks] = sections
+
+    rules = rule_block |> parse_rules
+    my_ticket = ticket_blocks |> hd() |> parse_ticket
+
+    tickets =
+      ticket_blocks
+      |> tl()
+      |> hd()
+      |> String.split("\n", trim: true)
+      |> Enum.map(&parse_ticket/1)
+
+    {rules, my_ticket, tickets}
+  end
+
+  defp parse_rules(text) do
+    text
+    |> String.replace("-", "..")
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      [field | ranges] =
+        line
+        |> String.split([": ", " or "], trim: true)
+
+      {
+        field,
+        ranges
+        |> Enum.map(fn string ->
+          {range, _} = Code.eval_string(string)
+          range
+        end)
+        |> List.to_tuple()
+      }
+    end)
+  end
+
+  defp parse_ticket(text) do
+    text
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.to_integer/1)
+  end
+
+  def invalid_number?(number, ranges) do
+    for range <- ranges do
+      number not in range
+    end
+    |> Enum.all?()
+  end
+
+  def invalid_ticket?(ticket, rules) do
+    ranges =
+      for {_field, {r1, r2}} <- rules do
+        [r1, r2]
+      end
+      |> Enum.concat()
+
+    ticket
+    |> Enum.filter(&invalid_number?(&1, ranges))
+  end
+end
+```
+
+```elixir
+defmodule PartA do
+  def solve({rules, _my_ticket, tickets}) do
+    tickets
+    |> Enum.map(&Shared.invalid_ticket?(&1, rules))
+    |> Enum.concat()
+    |> Enum.sum()
+  end
+end
+```
+
+## part a
+
+```elixir
+input
+|> Shared.parse()
+|> PartA.solve()
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## part b
+
+```elixir
+defmodule PartB do
+  def filter_invalid_tickets({rules, my_ticket, tickets}) do
+    valid_tickets =
+      tickets
+      |> Enum.reject(&(Shared.invalid_ticket?(&1, rules) != []))
+
+    {rules, my_ticket, valid_tickets}
+  end
+
+  def identify_possible_field_values({rules, _my_ticket, valid_tickets}) do
+    map =
+      Enum.reduce(rules, %{}, fn {field, {r1, r2}}, acc ->
+        acc
+        |> Map.put(r1, field)
+        |> Map.put(r2, field)
+      end)
+
+    # for each ticket, find valid field values
+    for ticket <- valid_tickets do
+      for number <- ticket do
+        for {range, field} <- map,
+            number in range do
+          field
+        end
+      end
+      |> Enum.with_index(fn e, i -> {i, e} end)
+    end
+    |> Enum.concat()
+    # for each field, find all valid values
+    |> Enum.reduce(%{}, fn {i, fields}, acc ->
+      Map.update(acc, i, fields, fn array -> array ++ fields end)
+    end)
+    # for each field, find all values with frequency == number of tickets
+    |> Enum.map(fn {i, fields} ->
+      {i, Enum.frequencies(fields)}
+    end)
+    |> Enum.map(fn {i, map_of_fields} ->
+      {
+        i,
+        map_of_fields
+        |> Enum.map(fn
+          {field, freq} when freq == length(valid_tickets) -> field
+          _ -> nil
+        end)
+        |> Enum.reject(&(&1 == nil))
+      }
+    end)
+    |> Enum.into(%{})
+  end
+
+  def identify_fields(fields), do: identify_fields(fields, %{}, length(Map.keys(fields)))
+
+  def identify_fields(_fields, solved_fields, 0) do
+    solved_fields
+    |> Enum.map(fn {key, [value]} -> {key, value} end)
+    |> Enum.into(%{})
+  end
+
+  def identify_fields(fields, solved_fields, n) do
+    new_solved_fields =
+      fields
+      |> Map.filter(fn {_key, value} -> length(value) == 1 end)
+      |> Map.merge(solved_fields)
+
+    remaining_fields =
+      fields
+      |> Map.reject(fn {key, _value} -> key in Map.keys(new_solved_fields) end)
+      |> Enum.map(fn {key, values} ->
+        {
+          key,
+          values -- (new_solved_fields |> Map.values() |> Enum.concat())
+        }
+      end)
+      |> Enum.into(%{})
+
+    identify_fields(remaining_fields, new_solved_fields, n - 1)
+  end
+
+  def solve_for_my_ticket({rules, my_ticket, valid_tickets}) do
+    identified_fields =
+      {rules, my_ticket, valid_tickets}
+      |> identify_possible_field_values()
+      |> identify_fields()
+
+    useful_fields =
+      identified_fields
+      |> Map.filter(fn
+        {_key, "departure " <> _field} -> true
+        _ -> false
+      end)
+      |> Map.keys()
+
+    my_ticket
+    |> Enum.with_index()
+    |> Enum.map(fn {value, index} -> if index in useful_fields, do: value, else: 1 end)
+    |> Enum.product()
+  end
+end
+```
+
+```elixir
+input
+|> Shared.parse()
+|> PartB.filter_invalid_tickets()
+|> PartB.solve_for_my_ticket()
+```
